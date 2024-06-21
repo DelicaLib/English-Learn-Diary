@@ -1,4 +1,9 @@
 .idea
 .venv
 .env
+*.bak
+*.dat
+*.dir
 
+**/__pycache__/
+**/__pycache__/*
