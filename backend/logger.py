@@ -1,29 +1,27 @@
 import logging
 
-from clickhouse_connect import get_client
-from clickhouse_connect.driver.client import Client as ch_client
 
-from backend.database.clickhouse import insert_log
+from backend.database.clickhouse import ClickhouseManager
 from backend.models.logs import StatusOK, Status400, Status500, BaseTable
 
 
 class ClickhouseHandler(logging.Handler):
-    Client = None
+    __clickhouse_manager = None
 
-    def __init__(self, clickhouse_client: ch_client, level: int = logging.NOTSET):
+    def __init__(self, clickhouse_manager: ClickhouseManager, level: int = logging.NOTSET):
         super().__init__(level)
-        self.Client = clickhouse_client
+        self.__clickhouse_manager = clickhouse_manager
 
     def emit(self, record):
         level = record.levelno
         data = getattr(record, 'data', None)
         if level == logging.INFO:
-            insert_log(self.Client, "statusOK", data)
+            self.__clickhouse_manager.insert_log("statusOK", data)
         elif level == logging.WARNING:
-            insert_log(self.Client, "status400", data)
+            self.__clickhouse_manager.insert_log("status400", data)
         elif level == logging.ERROR:
-            insert_log(self.Client, "status500", data)
-            print(*data)
+            self.__clickhouse_manager.insert_log("status400", data)
+            print(data)
         else:
             super().emit(record)
 
@@ -31,7 +29,7 @@ class ClickhouseHandler(logging.Handler):
 class MyLogger:
     __logger = None
     __console = False
-    __client = None
+    __clickhouse_manager = None
 
     def __init__(self, clickhouse_host: str,
                  clickhouse_port: int, db_name: str,
@@ -39,13 +37,13 @@ class MyLogger:
                  console: bool = False, name: str = "default"):
         self.__console = console
         try:
-            self.__client = get_client(host=clickhouse_host, database=db_name,
-                                       user=db_user, password=db_password,
-                                       port=clickhouse_port)
+            self.__clickhouse_manager = ClickhouseManager(host=clickhouse_host, database=db_name,
+                                                          user=db_user, password=db_password,
+                                                          port=clickhouse_port)
         except Exception as ex:
             raise ex
 
-        logger_handler = ClickhouseHandler(self.__client)
+        logger_handler = ClickhouseHandler(self.__clickhouse_manager)
         self.__logger = logging.getLogger(name)
         self.__logger.setLevel(logging.INFO)
         self.__logger.addHandler(logger_handler)
